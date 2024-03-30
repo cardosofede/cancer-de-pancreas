@@ -1,9 +1,11 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 
 from graphs import create_ultima_linea_graph, create_ps_counts_graph, create_schema_plp_graph, create_line_plp_graph, \
-    create_percentage_completion_graph
+    create_percentage_completion_graph, create_overall_survival_by_schema_graph, create_overall_survival_by_ps_graph
+
+st.set_page_config(layout="wide")
+
 
 def analyze_end_line(row):
     # Convert to datetime, errors='coerce' will turn invalid parsing into NaT
@@ -41,6 +43,12 @@ def process_data(df):
         plp_col = f"{i}L_PLP"
 
         df[plp_col] = (df[progresion_col] - df[inicio_col]).dt.days
+
+    filtered_df = df[df['fecha_fallecimiento'].notna()]
+    df["is_dead"] = df['fecha_fallecimiento'].notna()
+    df["overall_survival"] = 0
+    df.loc[filtered_df.index, 'overall_survival'] = (filtered_df['fecha_fallecimiento'] - filtered_df['1L_fecha_inicio']).dt.days
+
     return df
 # File uploader
 st.title("Patient Treatment Data Analysis")
@@ -78,9 +86,20 @@ if uploaded_file is not None:
 
         df = df[df['1L_Esquema'].isin(selected_schemas)]
 
-        # Display graphs
-    st.plotly_chart(create_ultima_linea_graph(df))
-    st.plotly_chart(create_ps_counts_graph(df))
-    st.plotly_chart(create_schema_plp_graph(df, schema_labels))
-    st.plotly_chart(create_line_plp_graph(df))
-    st.plotly_chart(create_percentage_completion_graph(df, schema_labels))
+
+    df_with_errors = df[(df['ultima_linea'] == 0) | (df["1L_PLP"] < 0) | (df["2L_PLP"] < 0) | (df["3L_PLP"] < 0) | (df["4L_PLP"] < 0) | (df["overall_survival"] < 0)]
+    if not df_with_errors.empty:
+        st.write("Data with errors:")
+        st.write(df_with_errors)
+    else:
+        st.write("No data with errors")
+    df_cleaned = df[~df.index.isin(df_with_errors.index)]
+
+    # Display graphs
+    st.plotly_chart(create_ultima_linea_graph(df_cleaned))
+    st.plotly_chart(create_ps_counts_graph(df_cleaned))
+    st.plotly_chart(create_schema_plp_graph(df_cleaned, schema_labels))
+    st.plotly_chart(create_line_plp_graph(df_cleaned))
+    st.plotly_chart(create_percentage_completion_graph(df_cleaned, schema_labels))
+    st.plotly_chart(create_overall_survival_by_schema_graph(df_cleaned, schema_labels))
+    st.plotly_chart(create_overall_survival_by_ps_graph(df_cleaned))
