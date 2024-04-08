@@ -12,3 +12,4 @@ dependencies:
     - streamlit
     - openpyxl
     - watchdog
+    - lifelines
