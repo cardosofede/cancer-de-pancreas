@@ -49,7 +49,6 @@ def process_data(df):
     df['duration_survival'] = (df['event'] - df['1L_fecha_inicio']).dt.days / 30.44
     df['duration_plp_1L'] = (df['1L_fecha_progresion'] - df['1L_fecha_inicio']).dt.days / 30.44
 
-    df = df[df["ultima_linea"] > 0]
     # Replace 'df' with your DataFrame's name
     for i in range(1, 5):  # Assuming you have up to 4L
         inicio_col = f"{i}L_fecha_inicio"
@@ -66,24 +65,11 @@ def process_data(df):
     # Assuming '1L_' is a datetime column in your DataFrame
     df['1L_fecha_inicio'] = pd.to_datetime(df['1L_fecha_inicio'], errors='coerce')
 
-    df["fecha_diagnostico_mts"] = pd.to_datetime(df["Fecha Diagnostico Mts"], errors="coerce")
-    min_date = df['fecha_diagnostico_mts'].min()
-    max_date = df['fecha_diagnostico_mts'].max()
-    start_date, end_date = st.sidebar.date_input("Select Date Range for Fecha Diagnostico Mts", [min_date, max_date])
-
-    df = df[(df['fecha_diagnostico_mts'] >= pd.to_datetime(start_date)) & (df['fecha_diagnostico_mts'] <= pd.to_datetime(end_date))]
-
     # Map 1L_Esquema
     df['1L_Esquema'] = df['1L_Esquema'].map(schema_labels)
     df['2L_Esquema'] = df['2L_Esquema'].map(schema_labels)
     df['3L_Esquema'] = df['3L_Esquema'].map(schema_labels)
     df['4L_Esquema'] = df['4L_Esquema'].map(schema_labels)
-
-    # Filters
-    unique_schemas = df['1L_Esquema'].unique()
-    selected_schemas = st.sidebar.multiselect("Select 1L_Esquema", unique_schemas, default=unique_schemas)
-
-    df = df[df['1L_Esquema'].isin(selected_schemas)]
 
     df["metastasico_vs_locally_advanced"] = df["Sitio metastasis"].apply(lambda x: "Locally Advanced" if x == 0 else "Metastasic")
     df["CA 19-9 basal (U/mL)"] = pd.to_numeric(df["CA 19-9 basal (U/mL)"], errors="coerce")
@@ -98,6 +84,17 @@ uploaded_file = st.file_uploader("Choose an Excel file", type=["xlsx"])
 if uploaded_file is not None:
     df = pd.read_excel(uploaded_file)
     df = process_data(df)
+    # Filters
+    df["fecha_diagnostico_mts"] = pd.to_datetime(df["Fecha Diagnostico Mts"], errors="coerce")
+    min_date = df['fecha_diagnostico_mts'].min()
+    max_date = df['fecha_diagnostico_mts'].max()
+    start_date, end_date = st.sidebar.date_input("Select Date Range for Fecha Diagnostico Mts", [min_date, max_date])
+    unique_schemas = df['1L_Esquema'].unique()
+    selected_schemas = st.sidebar.multiselect("Select 1L_Esquema", unique_schemas, default=unique_schemas)
+    df = df[df['1L_Esquema'].isin(selected_schemas)]
+
+    df = df[(df['fecha_diagnostico_mts'] >= pd.to_datetime(start_date)) & (
+                df['fecha_diagnostico_mts'] <= pd.to_datetime(end_date))]
 
     df_with_errors = df[(df['ultima_linea'] == 0) | (df["1L_PLP"] < 0) | (df["2L_PLP"] < 0) | (df["3L_PLP"] < 0) | (df["4L_PLP"] < 0) | (df["overall_survival"] < 0)]
     with st.expander("Data"):
@@ -110,7 +107,7 @@ if uploaded_file is not None:
     df_cleaned = df[~df.index.isin(df_with_errors.index)]
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.metric("Total Patients", df.shape[0])
+        st.metric("Total Patients", len(df))
     with c2:
         st.metric("Median Age", round(df["age"].median(), 2))
     with c3:
