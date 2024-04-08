@@ -64,17 +64,14 @@ def process_data(df):
     df["age"] = (pd.to_datetime(df["Fecha Diagnostico"], errors="coerce") - pd.to_datetime(df["Fecha Nacimiento"], errors="coerce")).dt.days / 365
     df.loc[filtered_df.index, 'overall_survival'] = (filtered_df['fecha_fallecimiento'] - filtered_df['1L_fecha_inicio']).dt.days
     # Assuming '1L_' is a datetime column in your DataFrame
-    if '1L_fecha_inicio' in df.columns:
-        # Convert to datetime if not already
-        df['1L_fecha_inicio'] = pd.to_datetime(df['1L_fecha_inicio'], errors='coerce')
+    df['1L_fecha_inicio'] = pd.to_datetime(df['1L_fecha_inicio'], errors='coerce')
 
-        # Date Range Selector
-        min_date = df['1L_fecha_inicio'].min()
-        max_date = df['1L_fecha_inicio'].max()
-        start_date, end_date = st.sidebar.date_input("Select Date Range for Fecha Inicio", [min_date, max_date])
+    df["fecha_diagnostico"] = pd.to_datetime(df["Fecha Diagnostico"], errors="coerce")
+    min_date = df['fecha_diagnostico'].min()
+    max_date = df['fecha_diagnostico'].max()
+    start_date, end_date = st.sidebar.date_input("Select Date Range for Fecha Diagnostico", [min_date, max_date])
 
-        df = df[
-            (df['1L_fecha_inicio'] >= pd.to_datetime(start_date)) & (df['1L_fecha_inicio'] <= pd.to_datetime(end_date))]
+    df = df[(df['1L_fecha_inicio'] >= pd.to_datetime(start_date)) & (df['1L_fecha_inicio'] <= pd.to_datetime(end_date))]
 
     # Map 1L_Esquema
     df['1L_Esquema'] = df['1L_Esquema'].map(schema_labels)
