@@ -71,7 +71,7 @@ def process_data(df):
     max_date = df['fecha_diagnostico_mts'].max()
     start_date, end_date = st.sidebar.date_input("Select Date Range for Fecha Diagnostico Mts", [min_date, max_date])
 
-    df = df[(df['1L_fecha_inicio'] >= pd.to_datetime(start_date)) & (df['1L_fecha_inicio'] <= pd.to_datetime(end_date))]
+    df = df[(df['fecha_diagnostico_mts'] >= pd.to_datetime(start_date)) & (df['fecha_diagnostico_mts'] <= pd.to_datetime(end_date))]
 
     # Map 1L_Esquema
     df['1L_Esquema'] = df['1L_Esquema'].map(schema_labels)
