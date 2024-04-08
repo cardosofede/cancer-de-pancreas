@@ -1,25 +1,35 @@
+import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 
+from common import schema_labels
+
 HEIGHT = 800
 WIDTH = 1500
+
+
 # Function to create the graph for "Patients Completing Each Treatment Line"
 def create_ultima_linea_graph(df):
     counts = df['ultima_linea'].value_counts().sort_index()
+
+    # Calculating the cumulative sum as per the specified logic
+    for i in range(1, counts.index.max() + 1):
+        counts[i] = counts.loc[i:].sum()
+
+    # Converting counts to percentages
+    total = counts.sum()
+    counts = round((counts / total) * 100, 2)
+
+    # Creating the plot
     fig = go.Figure([go.Bar(x=counts.index, y=counts, text=counts, textposition='outside', marker_color='blue')])
 
-    for line, total in counts.items():
-        fig.add_annotation(x=line, y=total, text=str(total), showarrow=False, yshift=10)
-
     fig.update_layout(
-        title="Patients Completing Each Treatment Line",
+        title="Patients Completing Each Treatment Line (as Percentage)",
         xaxis_title="Therapeutic Line",
-        yaxis_title="Count",
+        yaxis_title="Percentage",
         plot_bgcolor='white',
         font=dict(family="Arial, sans-serif", size=12, color="black"),
-        xaxis=dict(
-            type='category'  # Set x-axis type to 'category'
-        ),
+        xaxis=dict(type='category'),
         width=WIDTH,
         height=HEIGHT
     )
@@ -27,6 +37,57 @@ def create_ultima_linea_graph(df):
     fig.update_yaxes(title_standoff=25)
 
     return fig
+def create_pie_chart_metastasic_vs_locally_advanced(df):
+    counts = df['metastasico_vs_locally_advanced'].value_counts()
+    fig = go.Figure([go.Pie(labels=counts.index, values=counts, textinfo='label+percent', hole=0.3)])
+    fig.update_layout(
+        title="Metastasic vs Locally Advanced",
+        plot_bgcolor='white',
+        font=dict(family="Arial, sans-serif", size=12, color="black"),
+        width=WIDTH / 3,
+        height=HEIGHT
+    )
+    return fig
+
+
+def create_pie_chart_ps(df):
+    counts = df['PS'].value_counts()
+    fig = go.Figure([go.Pie(labels=counts.index, values=counts, textinfo='label+percent', hole=0.3)])
+    fig.update_layout(
+        title="ECOG Performance Status (PS)",
+        plot_bgcolor='white',
+        font=dict(family="Arial, sans-serif", size=12, color="black"),
+        width=WIDTH / 3,
+        height=HEIGHT
+    )
+    return fig
+
+def create_pie_chart_marcador_tumoral(df):
+    counts = df['marcador_tumoral'].value_counts()
+    fig = go.Figure([go.Pie(labels=counts.index, values=counts, textinfo='label+percent', hole=0.3)])
+    fig.update_layout(
+        title="Marcador Tumoral",
+        plot_bgcolor='white',
+        font=dict(family="Arial, sans-serif", size=12, color="black"),
+        width=WIDTH / 3,
+        height=HEIGHT
+    )
+    return fig
+
+
+def create_pie_chart_schema_by_line(df, line: str = "1L"):
+    counts = df[f"{line}_Esquema"].value_counts()
+    counts_without_na = counts[counts.index != "NA"]
+    fig = go.Figure([go.Pie(labels=counts_without_na.index, values=counts_without_na, textinfo='label+percent', hole=0.3)])
+    fig.update_layout(
+        title=f"Esquema de Tratamiento {line}",
+        plot_bgcolor='white',
+        font=dict(family="Arial, sans-serif", size=12, color="black"),
+        width=WIDTH / 3,
+        height=HEIGHT
+    )
+    return fig
+
 
 # Function to create the graph for "Patients Completing Each Treatment Line by ECOG PS"
 def create_ps_counts_graph(df):
@@ -40,7 +101,7 @@ def create_ps_counts_graph(df):
     return fig
 
 # Function to create the box plot for "PLP según el Esquema de Tratamiento de 1L"
-def create_schema_plp_graph(df, schema_labels):
+def create_schema_plp_graph(df):
     fig = go.Figure()
     for schema in df['1L_Esquema'].unique():
         label = schema_labels.get(schema, schema)
@@ -64,12 +125,12 @@ def create_line_plp_graph(df):
     return fig
 
 # Function to create the percentage bar chart for "Percentage of Patients Completing Each Treatment Line by First Treatment Line"
-def create_percentage_completion_graph(df, first_line_labels):
+def create_percentage_completion_graph(df):
     line_counts = df.groupby(['ultima_linea', '1L_Esquema']).size().unstack(fill_value=0)
     line_percentages = line_counts.divide(line_counts.sum(axis=1), axis=0) * 100
     fig = go.Figure()
     for idx, line in enumerate(line_percentages.columns):
-        line_label = first_line_labels.get(line, f"Line {line}")
+        line_label = schema_labels.get(line, f"Line {line}")
         fig.add_trace(go.Bar(x=line_percentages.index, y=line_percentages[line], name=line_label, text=line_percentages[line].apply(lambda x: '{:.1f}%'.format(x) if x != 0 else ''), textposition='outside'))
     fig.update_layout(title="Percentage of Patients Completing Each Treatment Line by First Treatment Line",
                       plot_bgcolor='white',
@@ -77,7 +138,7 @@ def create_percentage_completion_graph(df, first_line_labels):
                       xaxis_title="Ultima Linea", yaxis_title="Percentage", width=WIDTH, height=HEIGHT)
     return fig
 
-def create_overall_survival_by_schema_graph(df, schema_labels):
+def create_overall_survival_by_schema_graph(df):
     # Filter and calculate overall survival
     filtered_df = df[df['fecha_fallecimiento'].notna()]
     filtered_df['overall_survival'] = (filtered_df['fecha_fallecimiento'] - filtered_df['1L_fecha_inicio']).dt.days
