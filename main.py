@@ -66,10 +66,10 @@ def process_data(df):
     # Assuming '1L_' is a datetime column in your DataFrame
     df['1L_fecha_inicio'] = pd.to_datetime(df['1L_fecha_inicio'], errors='coerce')
 
-    df["fecha_diagnostico"] = pd.to_datetime(df["Fecha Diagnostico"], errors="coerce")
-    min_date = df['fecha_diagnostico'].min()
-    max_date = df['fecha_diagnostico'].max()
-    start_date, end_date = st.sidebar.date_input("Select Date Range for Fecha Diagnostico", [min_date, max_date])
+    df["fecha_diagnostico_mts"] = pd.to_datetime(df["Fecha Diagnostico Mts"], errors="coerce")
+    min_date = df['fecha_diagnostico_mts'].min()
+    max_date = df['fecha_diagnostico_mts'].max()
+    start_date, end_date = st.sidebar.date_input("Select Date Range for Fecha Diagnostico Mts", [min_date, max_date])
 
     df = df[(df['1L_fecha_inicio'] >= pd.to_datetime(start_date)) & (df['1L_fecha_inicio'] <= pd.to_datetime(end_date))]
 
