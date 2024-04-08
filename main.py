@@ -40,7 +40,14 @@ def process_data(df):
     df["2L_fecha_progresion"] = pd.to_datetime(df["2L_Fecha progresión"], errors="coerce")
     df["1L_fecha_progresion"] = pd.to_datetime(df["1L_Fecha progresión"], errors="coerce")
     df["fecha_fallecimiento"] = pd.to_datetime(df["Fecha Fallecimiento"], errors="coerce")
+    df["fecha_ultimo_contacto"] = pd.to_datetime(df["Fecha ultimo contacto"], errors="coerce")
     df["ultima_linea"] = df.apply(analyze_end_line, axis=1)
+    df["event"] = df.apply(
+        lambda x: x["fecha_fallecimiento"] if pd.notna(x["fecha_fallecimiento"]) else x["fecha_ultimo_contacto"],
+        axis=1)
+    # Duration calculation
+    df['duration_survival'] = (df['event'] - df['1L_fecha_inicio']).dt.days / 30.44
+    df['duration_plp_1L'] = (df['1L_fecha_progresion'] - df['1L_fecha_inicio']).dt.days / 30.44
 
     df = df[df["ultima_linea"] > 0]
     # Replace 'df' with your DataFrame's name
@@ -103,11 +110,6 @@ if uploaded_file is not None:
             st.write(df_with_errors)
         else:
             st.write("No data with errors")
-        if not df_with_errors.empty:
-            st.write("Data with errors:")
-            st.write(df_with_errors)
-        else:
-            st.write("No data with errors")
     df_cleaned = df[~df.index.isin(df_with_errors.index)]
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -138,9 +140,7 @@ if uploaded_file is not None:
         st.plotly_chart(create_pie_chart_schema_by_line(df_cleaned, "4L"))
 
     st.plotly_chart(create_ultima_linea_graph(df_cleaned))
-    st.plotly_chart(create_ps_counts_graph(df_cleaned))
     st.plotly_chart(create_schema_plp_graph(df_cleaned))
+    st.plotly_chart(create_overall_survival_by_schema_graph(df_cleaned))
     st.plotly_chart(create_line_plp_graph(df_cleaned))
     st.plotly_chart(create_percentage_completion_graph(df_cleaned))
-    st.plotly_chart(create_overall_survival_by_schema_graph(df_cleaned))
-    st.plotly_chart(create_overall_survival_by_ps_graph(df_cleaned))
