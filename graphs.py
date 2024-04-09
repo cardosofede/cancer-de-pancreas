@@ -119,7 +119,9 @@ def create_schema_plp_graph(df):
 
         # Subset the DataFrame for the current schema
         subset = df[df['1L_Esquema'] == schema]
-        subset = subset.dropna(subset=['1L_fecha_inicio', '1L_fecha_progresion'])
+
+        # Drop any NaNs in the duration column
+        subset = subset.dropna(subset=['duration_plp_1L'])
 
         # Event occurrence (1 if progression occurred, 0 if censored)
         subset['event_occurred'] = ~subset['1L_fecha_progresion'].isna()
@@ -181,23 +183,58 @@ def create_overall_survival_by_schema_graph(df):
         subset = df[df['1L_Esquema'] == schema]
         subset = subset.dropna(subset=['1L_fecha_inicio'])
 
-        subset["event"] = subset.apply(lambda x: x["fecha_fallecimiento"] if pd.notna(x["fecha_fallecimiento"]) else x["fecha_ultimo_contacto"], axis=1)
         # Duration calculation
         subset['event_occurred'] = ~subset['fecha_fallecimiento'].isna()
         # Fit Kaplan-Meier model
-        kmf.fit(subset['duration_survival'], subset['event_occurred'], label=label)
+        kmf.fit(subset['duration_survival_1L'], subset['event_occurred'], label=label)
 
         # Adding the Kaplan-Meier curve to the plot
         fig.add_trace(go.Scatter(x=kmf.survival_function_.index, y=kmf.survival_function_[label], mode='lines', name=label))
 
     fig.update_layout(
-        title="Overall Survival by Treatment Schema",
+        title="Overall Survival by Treatment Schema applied in first line",
         yaxis_title="Probability of Survival",
         plot_bgcolor='white',
         font=dict(family="Arial, sans-serif", size=12, color="black"),
         xaxis_title="Time (months)",
         width=WIDTH,
         height=HEIGHT
+    )
+
+    return fig
+
+
+def create_overall_survival_graph(df, line):
+    kmf = KaplanMeierFitter()
+    fig = go.Figure()
+    df = df.dropna(subset=[f'{line}_fecha_inicio'])
+    # Duration calculation
+    df['event_occurred'] = ~df['fecha_fallecimiento'].isna()
+
+    # Fit Kaplan-Meier model
+    kmf.fit(df[f'duration_survival_{line}'], df['event_occurred'], label="Overall Survival")
+
+    # Adding the Kaplan-Meier curve to the plot
+    fig.add_trace(go.Scatter(x=kmf.survival_function_.index, y=kmf.survival_function_["Overall Survival"], mode='lines',
+                             name="Overall Survival"))
+
+    # Determine the median survival time
+    median_survival = kmf.median_survival_time_
+
+    # Adding a horizontal line for the median survival
+    fig.add_shape(type="line", line=dict(dash="dash"),
+                  x0=0, x1=max(df[f'duration_survival_{line}']), y0=0.5, y1=0.5)
+
+    fig.update_layout(
+        title=f"Overall Survival {line}",
+        yaxis_title="Probability of Survival",
+        plot_bgcolor='white',
+        font=dict(family="Arial, sans-serif", size=12, color="black"),
+        xaxis_title="Time (months)",
+        width=WIDTH,
+        height=HEIGHT,
+        annotations=[dict(x=median_survival, y=0.5, xref="x", yref="y",
+                          text="Median: {:.2f} months".format(median_survival), showarrow=True, arrowhead=1)]
     )
 
     return fig

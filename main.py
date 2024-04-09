@@ -4,10 +4,10 @@ import streamlit as st
 import pandas as pd
 
 from common import schema_labels
-from graphs import create_ultima_linea_graph, create_ps_counts_graph, create_schema_plp_graph, create_line_plp_graph, \
-    create_percentage_completion_graph, create_overall_survival_by_schema_graph, create_overall_survival_by_ps_graph, \
+from graphs import create_ultima_linea_graph, create_line_plp_graph, \
+    create_percentage_completion_graph, create_overall_survival_by_schema_graph, \
     create_pie_chart_metastasic_vs_locally_advanced, create_pie_chart_ps, create_pie_chart_marcador_tumoral, \
-    create_pie_chart_schema_by_line
+    create_pie_chart_schema_by_line, create_overall_survival_graph, create_schema_plp_graph
 
 st.set_page_config(layout="wide")
 
@@ -42,12 +42,14 @@ def process_data(df):
     df["fecha_fallecimiento"] = pd.to_datetime(df["Fecha Fallecimiento"], errors="coerce")
     df["fecha_ultimo_contacto"] = pd.to_datetime(df["Fecha ultimo contacto"], errors="coerce")
     df["ultima_linea"] = df.apply(analyze_end_line, axis=1)
-    df["event"] = df.apply(
-        lambda x: x["fecha_fallecimiento"] if pd.notna(x["fecha_fallecimiento"]) else x["fecha_ultimo_contacto"],
-        axis=1)
+    df["fecha_final"] = df.apply(lambda x: x["fecha_fallecimiento"] if pd.notna(x["fecha_fallecimiento"]) else x["fecha_ultimo_contacto"], axis=1)
     # Duration calculation
-    df['duration_survival'] = (df['event'] - df['1L_fecha_inicio']).dt.days / 30.44
-    df['duration_plp_1L'] = (df['1L_fecha_progresion'] - df['1L_fecha_inicio']).dt.days / 30.44
+    df['duration_survival_1L'] = (df['fecha_final'] - df['1L_fecha_inicio']).dt.days / 30.44
+    df['duration_survival_2L'] = (df['fecha_final'] - df['2L_fecha_inicio']).dt.days / 30.44
+    df['duration_survival_3L'] = (df['fecha_final'] - df['3L_fecha_inicio']).dt.days / 30.44
+
+    df["1L_fecha_progresion_final"] = df["1L_fecha_progresion"].fillna(df["fecha_final"])
+    df['duration_plp_1L'] = (df['1L_fecha_progresion_final'] - df['1L_fecha_inicio']).dt.days / 30.44
 
     # Replace 'df' with your DataFrame's name
     for i in range(1, 5):  # Assuming you have up to 4L
@@ -86,8 +88,8 @@ if uploaded_file is not None:
     df = process_data(df)
     # Filters
     df["fecha_diagnostico_mts"] = pd.to_datetime(df["Fecha Diagnostico Mts"], errors="coerce")
-    min_date = df['fecha_diagnostico_mts'].min()
-    max_date = df['fecha_diagnostico_mts'].max()
+    min_date = datetime.date(2017, 1, 1)
+    max_date = datetime.date(2022, 12, 31)
     start_date, end_date = st.sidebar.date_input("Select Date Range for Fecha Diagnostico Mts", [min_date, max_date])
     unique_schemas = df['1L_Esquema'].unique()
     selected_schemas = st.sidebar.multiselect("Select 1L_Esquema", unique_schemas, default=unique_schemas)
@@ -134,7 +136,10 @@ if uploaded_file is not None:
         st.plotly_chart(create_pie_chart_schema_by_line(df_cleaned, "4L"))
 
     st.plotly_chart(create_ultima_linea_graph(df_cleaned))
-    st.plotly_chart(create_schema_plp_graph(df_cleaned))
+    st.plotly_chart(create_overall_survival_graph(df_cleaned, "1L"))
+    st.plotly_chart(create_overall_survival_graph(df_cleaned, "2L"))
+    st.plotly_chart(create_overall_survival_graph(df_cleaned, "3L"))
     st.plotly_chart(create_overall_survival_by_schema_graph(df_cleaned))
+    st.plotly_chart(create_schema_plp_graph(df_cleaned))
     st.plotly_chart(create_line_plp_graph(df_cleaned))
     st.plotly_chart(create_percentage_completion_graph(df_cleaned))
